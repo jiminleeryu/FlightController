@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">CupbotMaybe</string>
+    <string name="refresh">Scan/Refresh</string>
+    <string name="connect_menu">Connect Menu</string>
+    <string name="controls">Controls</string>
+    <string name="pairedDevices">Paired Devices</string>
+    <string name="FindDevices">Find Devices</string>
+</resources>

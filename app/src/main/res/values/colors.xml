@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="magenta">#D45FFF</color>
+    <color name="controlsColor">#4357AD</color>
+    <color name="controlsSelectedColor">#546EDD</color>
+    <color name="pairedDevicesColor">#32429A</color>
+</resources>
