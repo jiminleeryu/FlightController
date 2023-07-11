@@ -13,6 +13,7 @@ import androidx.core.content.ContextCompat;
 
 import com.example.cupbotmaybe.ui.ControlsButton;
 import com.example.cupbotmaybe.ui.Joystick;
+import com.example.cupbotmaybe.util.BluetoothLeService;
 
 public class Game extends SurfaceView implements SurfaceHolder.Callback {
     private GameLoop gameLoop;
@@ -23,9 +24,11 @@ public class Game extends SurfaceView implements SurfaceHolder.Callback {
     private int throttlePointerId = 0;
     private int screenWidth;
     private int screenHeight;
+    private Context context;
 
     public Game(Context context) {
         super(context);
+        this.context = context;
         init(context);
     }
 
@@ -39,12 +42,13 @@ public class Game extends SurfaceView implements SurfaceHolder.Callback {
         this.screenHeight = getContext().getResources().getDisplayMetrics().heightPixels;
 
         gameLoop = new GameLoop(this, surfaceHolder);
-        //TODO: find out why surfaceHolder.geSurfaceFrame().width() is 0
         steer = new Joystick(screenWidth - 500,
                 screenHeight - 600, 300, 150);
         throttle = new Joystick(500,
                 screenHeight - 600, 300, 150);
         controlButton = new ControlsButton((screenWidth / 2) - 300 , (screenHeight / 2) - 300, screenWidth / 2 + 300, screenHeight / 2, context);
+
+        throttle.setActuator(495, screenHeight - 375);
 
         setFocusable(true);
     }
@@ -166,8 +170,8 @@ public class Game extends SurfaceView implements SurfaceHolder.Callback {
     public void updateButton(){
         if(controlButton.getIsPressed()){
             controlButton.setIsPressed(false);
-            Intent intent = new Intent(getContext(), DeviceList.class);
-            getContext().startActivity(intent);
+            Intent intent = new Intent(this.context, DeviceList.class);
+            context.startActivity(intent);
         }
     }
 
@@ -177,4 +181,20 @@ public class Game extends SurfaceView implements SurfaceHolder.Callback {
         updateButton();
     }
 
+    public double getThrottleActuatorY(){
+        return this.throttle.getActuatorY();
+    }
+    public double getSteerActuatorY(){
+        return this.steer.getActuatorY();
+    }
+    public double getSteerActuatorX(){
+        return this.steer.getActuatorX();
+    }
+
+    public double getScreenWidth(){
+        return this.screenWidth;
+    }
+    public double getScreenHeight(){
+        return this.screenHeight;
+    }
 }

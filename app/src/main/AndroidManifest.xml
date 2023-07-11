@@ -40,6 +40,9 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+        <service android:name=".util.BluetoothLeService"
+            android:enabled="true"
+            android:exported="false"/>
     </application>
 
 </manifest>
