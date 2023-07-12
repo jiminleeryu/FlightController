@@ -18,7 +18,9 @@ import android.util.Log;
 
 import androidx.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 public class BluetoothLeService extends Service {
 
@@ -49,8 +51,14 @@ public class BluetoothLeService extends Service {
     public boolean startConnect = false;
     private BluetoothGattCharacteristic controlCharacteristic;
     private Context appContext;
+    private List<UUID> serviceUuids = new ArrayList<UUID>();
+    private List<UUID> characteristicUuids = new ArrayList<UUID>();
 
     public BluetoothLeService(){
+    }
+
+    public void setContext(Context appContext){
+        this.appContext = appContext;
     }
 
     private final BroadcastReceiver gattUpdateReceiver = new BroadcastReceiver() {
@@ -99,7 +107,7 @@ public class BluetoothLeService extends Service {
             this.device = bluetoothAdapter.getRemoteDevice(address);
 
             // connect to the GATT server on the device
-            bluetoothGatt = device.connectGatt(getBaseContext(), false, bluetoothGattCallback);
+            bluetoothGatt = device.connectGatt(appContext, false, bluetoothGattCallback); //TODO: getBaseContext is null
             Log.e(TAG, "Connecting to Bluetooth device");
             return true;
         } catch (IllegalArgumentException exception) {
@@ -110,8 +118,7 @@ public class BluetoothLeService extends Service {
 
     private void broadcastUpdate(final String action) {
         final Intent intent = new Intent(action);
-        Context context = getApplicationContext();
-        context.sendBroadcast(intent);
+        appContext.sendBroadcast(intent);
     }
 
     private final BluetoothGattCallback bluetoothGattCallback = new BluetoothGattCallback() {
@@ -123,6 +130,7 @@ public class BluetoothLeService extends Service {
                 // successfully connected to the GATT Server
                 connectionState = STATE_CONNECTED;
                 broadcastUpdate(ACTION_GATT_CONNECTED);
+                Log.e(TAG, "onConnectionStateChange: CONNECTED");
 
                 // Attempts to discover services after successful connection.
                 bluetoothGatt.discoverServices();
@@ -130,15 +138,30 @@ public class BluetoothLeService extends Service {
                 // disconnected from the GATT Server
                 connectionState = STATE_DISCONNECTED;
                 broadcastUpdate(ACTION_GATT_DISCONNECTED);
+                Log.e(TAG, "onConnectionStateChange: DISCONNECTED");
             }
         }
 
         @Override
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
+                List<BluetoothGattService> services = gatt.getServices();
                 broadcastUpdate(ACTION_GATT_SERVICES_DISCOVERED);
+
+                for (BluetoothGattService service : services) {
+                    serviceUuids.add(service.getUuid());
+
+                    Log.e(TAG, "Service UUID: " + service.getUuid().toString());
+
+                    List<BluetoothGattCharacteristic> characteristics = service.getCharacteristics();
+
+                    for (BluetoothGattCharacteristic characteristic : characteristics) {
+                        characteristicUuids.add(characteristic.getUuid());
+                        Log.e(TAG, "Characteristic UUID: " + characteristic.getUuid().toString());
+                    }
+                }
             } else {
-                Log.w(TAG, "onServicesDiscovered received: " + status);
+                Log.e(TAG, "onServicesDiscovered received: " + status);
             }
         }
     };
@@ -161,6 +184,10 @@ public class BluetoothLeService extends Service {
         return super.onUnbind(intent);
     }
 
+    public BluetoothGatt getBluetoothGatt(){
+        return bluetoothGatt;
+    }
+
     @SuppressLint("MissingPermission")
     private void close() {
         if (bluetoothGatt == null) {
@@ -169,12 +196,6 @@ public class BluetoothLeService extends Service {
         startConnect = false;
         bluetoothGatt.close();
         bluetoothGatt = null;
-    }
-
-    public List<BluetoothGattService> getSupportedGattServices() {
-        if (bluetoothGatt == null)
-            return null;
-        return bluetoothGatt.getServices();
     }
 
     public String getAddress(){

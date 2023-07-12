@@ -4,7 +4,9 @@ import static android.content.ContentValues.TAG;
 
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -46,65 +48,39 @@ public class MainActivity extends AppCompatActivity {
         window.setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
     }
 
+    private BroadcastReceiver connectionStatusReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            if (BluetoothLeService.ACTION_GATT_CONNECTED.equals(action)) {
+                Log.e(TAG, "onReceive: Connected, handler will start running");
+                Thread updateThread = new Thread(updateRunnable);
+                updateThread.start();
+            } else if (BluetoothLeService.ACTION_GATT_DISCONNECTED.equals(action)) {
+                Log.e(TAG, "onReceive: disconnected, handler will stop running");
+                updateHandler.removeCallbacksAndMessages(null);
+            }
+        }
+    };
 
     @SuppressLint("MissingPermission")
     @Override
     protected void onResume() {
         super.onResume();
-
-        Intent serviceIntent = new Intent(MainActivity.this, BluetoothLeService.class);
-//
-//        Log.e(TAG, "onResume: main activity is resumed");
-//        startService(serviceIntent);
-        serviceConnection = new ServiceConnection() {
-            @Override
-            public void onServiceConnected(ComponentName name, IBinder service) {
-                Log.e(TAG, "onServiceConnected: Initializing bluetooth service");
-
-                //ADDED
-                bindService(serviceIntent, serviceConnection, Context.BIND_AUTO_CREATE);
-
-                bluetoothService = ((BluetoothLeService.LocalBinder) service).getService();
-
-                Log.e(TAG, "onServiceConnected: " + bluetoothService.getConnectionState());
-                if(bluetoothService.getConnectionState() && bluetoothService != null){
-                    if (!bluetoothService.initialize()) {
-                        Log.e(TAG, "Unable to initialize Bluetooth");
-                    }
-                    // perform device connection
-                    System.out.println(bluetoothService.getAddress());
-                    bluetoothService.connect(bluetoothService.getAddress());
-                    registerReceiver(bluetoothService.getGattUpdateReceiver(), makeGattUpdateIntentFilter());
-
-                    Log.e(TAG, "Connect request result=" + bluetoothService.connect(bluetoothService.getAddress()));
-
-                    Thread updateThread = new Thread(updateRunnable);
-                    updateThread.start();
-
-                    Log.e(TAG, "onServiceConnected: Performing device connection");
-                }
-            }
-            @Override
-            public void onServiceDisconnected(ComponentName name) {
-                bluetoothService = null;
-            }
-        };
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(BluetoothLeService.ACTION_GATT_CONNECTED);
+        filter.addAction(BluetoothLeService.ACTION_GATT_DISCONNECTED);
+        registerReceiver(connectionStatusReceiver, filter);
     }
 
     @Override
-    protected void onPause() {
+    protected void onPause() { //TODO: FIX THIS
         super.onPause();
-        if(registered){
-            unregisterReceiver(bluetoothService.getGattUpdateReceiver());
-            registered = false;
-        }
-    }
-
-    private static IntentFilter makeGattUpdateIntentFilter() {
-        final IntentFilter intentFilter = new IntentFilter();
-        intentFilter.addAction(BluetoothLeService.ACTION_GATT_CONNECTED);
-        intentFilter.addAction(BluetoothLeService.ACTION_GATT_DISCONNECTED);
-        return intentFilter;
+        unregisterReceiver(connectionStatusReceiver);
+//        if(registered){
+//            unregisterReceiver(bluetoothService.getGattUpdateReceiver());
+//            registered = false;
+//        }
     }
 
     private Handler updateHandler = new Handler();

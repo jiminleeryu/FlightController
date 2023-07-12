@@ -2,22 +2,24 @@ package com.example.cupbotmaybe;
 
 import static android.Manifest.permission.ACCESS_FINE_LOCATION;
 import static android.Manifest.permission.BLUETOOTH_SCAN;
-
 import static com.example.cupbotmaybe.util.BluetoothLeService.TAG;
 
 import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothGattService;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.os.IBinder;
 import android.util.Log;
-import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 
@@ -30,7 +32,6 @@ import com.example.cupbotmaybe.util.BluetoothLeService;
 import com.google.android.material.snackbar.Snackbar;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
@@ -49,6 +50,8 @@ public class DeviceList extends AppCompatActivity {
     private List<String> devicesList = new ArrayList<>();
     private ListView deviceView;
     private Context context;
+    private BluetoothLeService bluetoothService;
+    private ServiceConnection serviceConnection;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -120,8 +123,6 @@ public class DeviceList extends AppCompatActivity {
     private void deviceConnectList() {
         mBluetoothAdapter.startDiscovery();
 
-        //addDevices();
-
         deviceView = findViewById(R.id.select_device_list);
         ArrayAdapter<String> adapter = new ArrayAdapter<>(getApplicationContext(), android.R.layout.simple_list_item_1, devicesList);
         deviceView.setAdapter(adapter);
@@ -137,8 +138,10 @@ public class DeviceList extends AppCompatActivity {
 
                     String address = searchDevicesList.get(position).getAddress();
                     Log.e(TAG, "Address: " + address);
-                    BluetoothLeService service = new BluetoothLeService();
-                    service.connect(address);
+                    bluetoothService = new BluetoothLeService();
+                    bluetoothService.setContext(getApplicationContext());
+                    bluetoothService.connect(address);
+
 
                     Log.e(TAG, "deviceConnectList: Connect button was pressed");
                     //TODO: 1. establish connection, 2. once a connection is made from the bluetoothGatt, then add the device to the pairedDevices list.
@@ -146,20 +149,6 @@ public class DeviceList extends AppCompatActivity {
                 }).setNegativeButton("Dismiss", (dialog, which) -> {
                     dialog.dismiss();
                 }).create().show());
-    }
-
-    @SuppressLint("MissingPermission")
-    private void removeDevices() {
-        for(BluetoothDevice device : searchDevicesList){
-            devicesList.remove(device.getName() + " | " + device.getAddress());
-        }
-    }
-
-    @SuppressLint("MissingPermission")
-    private void addDevices() {
-        for(BluetoothDevice device : searchDevicesList){
-            devicesList.add(device.getName() + " | " + device.getAddress());
-        }
     }
 
     public boolean askPermission() {
@@ -182,16 +171,40 @@ public class DeviceList extends AppCompatActivity {
         startActivity(new Intent(DeviceList.this, MainActivity.class));
     }
 
-    @SuppressLint("MissingPermission")
-    @Override
-    protected void onStart() {
-        super.onStart();
-    }
-
     @Override
     protected void onPause() {
         super.onPause();
         stopSearch();
+
+        Intent serviceIntent = new Intent(this, BluetoothLeService.class);
+
+        serviceConnection = new ServiceConnection() {
+            @Override
+            public void onServiceConnected(ComponentName name, IBinder service) {
+                Log.e(ContentValues.TAG, "onServiceConnected: Initializing bluetooth service");
+
+                bindService(serviceIntent, serviceConnection, Context.BIND_AUTO_CREATE);
+
+                bluetoothService = ((BluetoothLeService.LocalBinder) service).getService();
+
+                Log.e(ContentValues.TAG, "onServiceConnected: " + bluetoothService.getConnectionState());
+                if(bluetoothService.getConnectionState() && bluetoothService != null){
+                    if (!bluetoothService.initialize()) {
+                        Log.e(ContentValues.TAG, "Unable to initialize Bluetooth");
+                    }
+                    System.out.println(bluetoothService.getAddress());
+                    bluetoothService.connect(bluetoothService.getAddress());
+                    registerReceiver(bluetoothService.getGattUpdateReceiver(), makeGattUpdateIntentFilter());
+
+                    Log.e(ContentValues.TAG, "Connect request result=" + bluetoothService.connect(bluetoothService.getAddress()));
+                    Log.e(ContentValues.TAG, "onServiceConnected: Performing device connection");
+                }
+            }
+            @Override
+            public void onServiceDisconnected(ComponentName name) {
+                bluetoothService = null;
+            }
+        };
     }
 
     @SuppressLint("MissingPermission")
@@ -209,6 +222,13 @@ public class DeviceList extends AppCompatActivity {
 
         binding.selectDeviceRefresh.setOnClickListener(v -> deviceConnectList());
         binding.controlsButton.setOnClickListener(v -> startActivity(new Intent(DeviceList.this, MainActivity.class)));
+    }
+
+    private static IntentFilter makeGattUpdateIntentFilter() {
+        final IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(BluetoothLeService.ACTION_GATT_CONNECTED);
+        intentFilter.addAction(BluetoothLeService.ACTION_GATT_DISCONNECTED);
+        return intentFilter;
     }
 
     @SuppressLint("MissingPermission")
