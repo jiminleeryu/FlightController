@@ -1,4 +1,4 @@
-package com.example.cupbotmaybe;
+package com.example.cupbotmaybe.ui;
 
 import android.content.Context;
 import android.content.Intent;
@@ -11,20 +11,23 @@ import android.view.SurfaceView;
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 
-import com.example.cupbotmaybe.ui.ControlsButton;
-import com.example.cupbotmaybe.ui.Joystick;
+import com.example.cupbotmaybe.DeviceList;
 import com.example.cupbotmaybe.util.BluetoothLeService;
+import com.example.cupbotmaybe.util.GameLoop;
+import com.example.cupbotmaybe.R;
 
 public class Game extends SurfaceView implements SurfaceHolder.Callback {
     private GameLoop gameLoop;
     private Joystick throttle;
     private Joystick steer;
     private ControlsButton controlButton;
+    private LockToggle lockToggle;
     private int steerPointerId = 0;
     private int throttlePointerId = 0;
     private int screenWidth;
     private int screenHeight;
     private Context context;
+    private boolean isUnLocked = false;
 
     public Game(Context context) {
         super(context);
@@ -47,6 +50,7 @@ public class Game extends SurfaceView implements SurfaceHolder.Callback {
         throttle = new Joystick(500,
                 screenHeight - 600, 300, 150);
         controlButton = new ControlsButton((screenWidth / 2) - 300 , (screenHeight / 2) - 300, screenWidth / 2 + 300, screenHeight / 2, context);
+        lockToggle = new LockToggle((screenWidth / 2) - 300 , (screenHeight / 2) + 100, screenWidth / 2 + 300, screenHeight / 2 + 300, context);
 
         throttle.setActuator(495, screenHeight - 375);
 
@@ -78,6 +82,16 @@ public class Game extends SurfaceView implements SurfaceHolder.Callback {
                     controlButton.setColor(paint);
                     controlButton.setIsPressed(true);
                 }
+
+                if(lockToggle.isPressed(event.getX(), event.getY())){
+                    int color = ContextCompat.getColor(getContext(), R.color.lockColor);
+                    Paint paint = new Paint();
+                    paint.setColor(color);
+                    lockToggle.setColor(paint);
+                    lockToggle.setIsPressed(true);
+                    isUnLocked = !isUnLocked;
+                }
+
                 return true;
 
             case MotionEvent.ACTION_UP:
@@ -92,8 +106,13 @@ public class Game extends SurfaceView implements SurfaceHolder.Callback {
                 else if(controlButton.getIsPressed()){
                     controlButton.setIsPressed(false);
                 }
+                else if(lockToggle.getIsPressed()){
+                    int color = ContextCompat.getColor(getContext(), R.color.unlockColor);
+                    Paint paint = new Paint();
+                    paint.setColor(color);
+                    lockToggle.setColor(paint);
+                }
                 return true;
-
 
             case MotionEvent.ACTION_MOVE:
                 for (int i = 0; i < event.getPointerCount(); i++) {
@@ -147,6 +166,31 @@ public class Game extends SurfaceView implements SurfaceHolder.Callback {
         throttle.draw(canvas);
         steer.draw(canvas);
         controlButton.draw(canvas);
+        lockToggle.draw(canvas);
+    }
+
+    public void updateButton(){
+        if(controlButton.getIsPressed()){
+            controlButton.setIsPressed(false);
+            Intent intent = new Intent(this.context, DeviceList.class);
+            context.startActivity(intent);
+        }
+        if(!isUnLocked){
+            int color = ContextCompat.getColor(getContext(), R.color.unlockColor);
+            Paint paint = new Paint();
+            paint.setColor(color);
+            lockToggle.setColor(paint);
+        }
+    }
+
+    public Context getGameContext(){
+        return this.context;
+    }
+
+    public void update() {
+        throttle.update();
+        steer.update();
+        updateButton();
     }
 
     public void drawUPS(Canvas canvas) {
@@ -167,20 +211,6 @@ public class Game extends SurfaceView implements SurfaceHolder.Callback {
         canvas.drawText("FPS: " + averageFPS, 100, 200, paint);
     }
 
-    public void updateButton(){
-        if(controlButton.getIsPressed()){
-            controlButton.setIsPressed(false);
-            Intent intent = new Intent(this.context, DeviceList.class);
-            context.startActivity(intent);
-        }
-    }
-
-    public void update() {
-        throttle.update();
-        steer.update();
-        updateButton();
-    }
-
     public double getThrottleActuatorY(){
         return this.throttle.getActuatorY();
     }
@@ -191,6 +221,9 @@ public class Game extends SurfaceView implements SurfaceHolder.Callback {
         return this.steer.getActuatorX();
     }
 
+    public boolean getUnlockState(){
+        return isUnLocked;
+    }
     public double getScreenWidth(){
         return this.screenWidth;
     }

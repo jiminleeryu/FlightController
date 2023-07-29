@@ -1,0 +1,88 @@
+TODO: 1: $M<COMMAND><DATA_SIZE><DATA><CHECKSUM>
+     <preamble>,<direction>,<size>,<command>,,<crc>
+Where:
+            preamble = the ASCII characters '$M'
+             * direction = the ASCII character '<' if to the MWC or '>' if from the MWC
+             * size = number of data bytes, binary. Can be zero as in the case of a data request to the MWC
+             * command = message_id as per the table below
+             * data = as per the table below. UINT16 values are LSB first.
+             * crc = XOR of <size>, <command> and each data byte into a zeroed sum
+             *
+             *  Preamble: $M
+             *  Direction: < (To the MWC)
+             *  # of data bytes: 32 (calculated)
+             *  Command: 104 (MSP_MOTOR)
+             *  Data: __________
+             *  $M<"number of data bytes" 104
+             *
+             *     2. SELECT MSP COMMAND: choose MSP code for motor function
+             *     3. PREPARE DATA PAYLOAD: format the data payload
+             *     4. CALCULATE CHECKSUM
+             *     5. CONSTRUCT PACKET: combine header, command code, data length, data payload using step 1 as template
+             *     6. SEND PACKET: Use the bluetooth connection to send packet
+             *
+             *     #define FL 6
+             *     #define FR 10
+             *     #define RR 9
+             *     #define RL 5 (According to Arduino documentation)
+
+             MSP_MOTOR  \\	104	FC → \\	Motor*8	 \\  16 x UINT 16	\\    Range [1000;2000] The motor order depends on multi type
+
+             // EXAMPLE PWM values for Arduino motor pins (in microseconds)
+             int motor1_pwm = 1000; // Minimum throttle
+             int motor2_pwm = 1600;
+             int motor3_pwm = 1200;
+             int motor4_pwm = 1400;
+
+             // Convert to MSP motor values (Motor*8)
+             int msp_motor1 = (motor1_pwm - 1000) * 8;
+             int msp_motor2 = (motor2_pwm - 1000) * 8;
+             int msp_motor3 = (motor3_pwm - 1000) * 8;
+             int msp_motor4 = (motor4_pwm - 1000) * 8;
+
+Motor 1 (11 bits)        Motor 2 (11 bits)        Motor 3 (11 bits)        Motor 4 (11 bits)
+|MSB-1 | LSB-1|MSB-2 | LSB-2|MSB-3 | LSB-3|MSB-4 | LSB-4|
+
+             int msp_motor1 = 4160
+             int msp_motor2 = 4160
+             int msp_motor3 = 4160
+             int msp_motor4 = 4160
+
+
+** Map the correct PWM values to the desired throttle levels for each motor based on your drone's
+motor control configuration.
+** Ensure that you set the correct MSP direction indicator in the MSP packet to control the motor
+direction as specified in your drone's firmware documentation.
+
+
+EXAMPLE CUP DRONE INFO:
+
+BN: Arduino Leonardo
+VIN: 2341
+PID: 8036
+
+MAC Address: 64:69:4E:99:D8:51
+
+FIND FIND!!! BLE characteristic representing the MSP communication channel
+Which characteristic UUID????
+
+THE PACKET:
+$           M       <       size     214
+00100100 01001101 00111100 [64] 11010110 [CRC]
+
+$M<64150
+
+Service UUID at 0 index works with the characteristic UUIDs (doesnt work with 6, 5
+
+0 Service UUID: 00001800-0000-1000-8000-00805f9b34fb
+0 Characteristic UUID: 00002a00-0000-1000-8000-00805f9b34fb
+1 Characteristic UUID: 00002a01-0000-1000-8000-00805f9b34fb
+2 Characteristic UUID: 00002a02-0000-1000-8000-00805f9b34fb
+3 Characteristic UUID: 00002a03-0000-1000-8000-00805f9b34fb
+4 Characteristic UUID: 00002a04-0000-1000-8000-00805f9b34fb
+
+1 Service UUID: 00001801-0000-1000-8000-00805f9b34fb
+5 Characteristic UUID: 00002a05-0000-1000-8000-00805f9b34fb
+
+2 Service UUID: 0000ffe0-0000-1000-8000-00805f9b34fb
+6 Characteristic UUID: 0000ffe1-0000-1000-8000-00805f9b34fb

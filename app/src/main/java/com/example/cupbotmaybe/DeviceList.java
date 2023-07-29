@@ -2,33 +2,34 @@ package com.example.cupbotmaybe;
 
 import static android.Manifest.permission.ACCESS_FINE_LOCATION;
 import static android.Manifest.permission.BLUETOOTH_SCAN;
+import static com.example.cupbotmaybe.util.BluetoothLeService.ACTION_GATT_CONNECTED;
+import static com.example.cupbotmaybe.util.BluetoothLeService.ACTION_GATT_DISCONNECTED;
 import static com.example.cupbotmaybe.util.BluetoothLeService.TAG;
 
 import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothGattService;
 import android.content.BroadcastReceiver;
-import android.content.ComponentName;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
-import android.os.IBinder;
 import android.util.Log;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.ListView;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
-import com.example.cupbotmaybe.databinding.ActivityDeviceListBinding;
+import com.example.cupbotmaybe.ui.Game;
 import com.example.cupbotmaybe.util.BluetoothLeService;
+import com.example.cupbotmaybe.util.BluetoothLeViewModel;
+import com.example.cupbotmaybe.util.updateRunnable;
 import com.google.android.material.snackbar.Snackbar;
 
 import java.util.ArrayList;
@@ -36,11 +37,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
-public class DeviceList extends AppCompatActivity {
-
-    private ActivityDeviceListBinding binding;
+public class DeviceList extends AppCompatActivity{
     private Set<BluetoothDevice> mPairedDevices;
-
     private BluetoothAdapter mBluetoothAdapter = null;
     private static final int PERMISSION_REQUEST_CODE = 1234;
     String[] appPermissions = {ACCESS_FINE_LOCATION};
@@ -49,16 +47,20 @@ public class DeviceList extends AppCompatActivity {
     private Intent serviceIntent;
     private List<String> devicesList = new ArrayList<>();
     private ListView deviceView;
-    private Context context;
+    private boolean registered, connected = false;
     private BluetoothLeService bluetoothService;
-    private ServiceConnection serviceConnection;
+    private Button controls, search;
+    private BluetoothLeViewModel BLEViewModel;
+    private Runnable runnable;
+    private ArrayAdapter<String> adapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_device_list);
 
-        binding = ActivityDeviceListBinding.inflate(getLayoutInflater());
-        setContentView(binding.getRoot());
+        controls = findViewById(R.id.controls_button);
+        search = findViewById(R.id.select_device_refresh);
 
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 
@@ -84,23 +86,37 @@ public class DeviceList extends AppCompatActivity {
                             Log.e("device_name", device.getName());
                             Log.e("device_add", device.getAddress());
 
-                            removeNonDiscoverableDevice(device);
+                            //removeNonDiscoverableDevice(device);
                             devicesList.add(device.getName() + " | " + device.getAddress());
                             searchDevicesList.add(device);
-                            System.out.println("Found device" + device.getName() + " - " + device.getAddress());
+                            System.out.println("Found device " + device.getName() + " - " + device.getAddress());
                         }
                     }
                 }
             }
         };
 
-        deviceView = findViewById(R.id.select_device_list);
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(getApplicationContext(), android.R.layout.simple_list_item_1, devicesList);
-        deviceView.setAdapter(adapter);
-        adapter.notifyDataSetChanged();
+        controls.setOnClickListener(v -> start());
+        search.setOnClickListener(v -> deviceConnectList());
+    }
 
-        binding.selectDeviceRefresh.setOnClickListener(v -> deviceConnectList());
-        binding.controlsButton.setOnClickListener(v -> startActivity(new Intent(DeviceList.this, MainActivity.class)));
+    public void start(){
+        Game game = new Game(this);
+        setContentView(game);
+        if(connected){
+            startControlling(game);
+            stopSearch();
+        }
+    }
+
+    private void startControlling(Game game) {
+        if(bluetoothService != null){
+            this.runnable = new updateRunnable(game, bluetoothService);
+            Thread updateThread = new Thread(runnable);
+            updateThread.start();
+
+            Log.e(ContentValues.TAG, "onResume: BluetoothLeService is not null");
+        }
     }
 
     @SuppressLint("MissingPermission")
@@ -113,18 +129,30 @@ public class DeviceList extends AppCompatActivity {
                 devicesList.remove(d.getName() + " | " + d.getAddress());
             }
         }
-        deviceView = findViewById(R.id.select_device_list);
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(getApplicationContext(), android.R.layout.simple_list_item_1, devicesList);
-        deviceView.setAdapter(adapter);
-        adapter.notifyDataSetChanged();
+
+        if(registered){
+            deviceView = findViewById(R.id.select_device_list);
+            adapter = new ArrayAdapter<>(getApplicationContext(), android.R.layout.simple_list_item_1, devicesList);
+            adapter.notifyDataSetChanged();
+            deviceView.setAdapter(adapter);
+            adapter.notifyDataSetChanged();
+        }
     }
 
     @SuppressLint("MissingPermission")
     private void deviceConnectList() {
-        mBluetoothAdapter.startDiscovery();
+
+        // Register the BroadcastReceiver
+        if(askPermission()){
+            mBluetoothAdapter.startDiscovery();
+            System.out.println("starting discovery");
+            IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
+            registerReceiver(receiver, filter);
+            registered = true;
+        }
 
         deviceView = findViewById(R.id.select_device_list);
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(getApplicationContext(), android.R.layout.simple_list_item_1, devicesList);
+        adapter = new ArrayAdapter<>(getApplicationContext(), android.R.layout.simple_list_item_1, devicesList);
         deviceView.setAdapter(adapter);
         adapter.notifyDataSetChanged();
 
@@ -133,15 +161,26 @@ public class DeviceList extends AppCompatActivity {
                 .setCancelable(true)
                 .setMessage("Connect to " + devicesList.get(position) + "?")
                 .setPositiveButton("Connect", (dialog, which) -> {
+
+                    //ADDED
+                    deviceView = findViewById(R.id.select_device_list);
+                    adapter = new ArrayAdapter<>(getApplicationContext(), android.R.layout.simple_list_item_1, devicesList);
+                    deviceView.setAdapter(adapter);
+                    adapter.notifyDataSetChanged();
+
                     serviceIntent = new Intent(this, BluetoothLeService.class);
                     startService(serviceIntent);
 
                     String address = searchDevicesList.get(position).getAddress();
                     Log.e(TAG, "Address: " + address);
-                    bluetoothService = new BluetoothLeService();
+
+                    this.BLEViewModel = new BluetoothLeViewModel(getApplication());
+
+                    bluetoothService = BLEViewModel.getBluetoothLeService();
                     bluetoothService.setContext(getApplicationContext());
                     bluetoothService.connect(address);
 
+                    connected = true;
 
                     Log.e(TAG, "deviceConnectList: Connect button was pressed");
                     //TODO: 1. establish connection, 2. once a connection is made from the bluetoothGatt, then add the device to the pairedDevices list.
@@ -149,6 +188,7 @@ public class DeviceList extends AppCompatActivity {
                 }).setNegativeButton("Dismiss", (dialog, which) -> {
                     dialog.dismiss();
                 }).create().show());
+
     }
 
     public boolean askPermission() {
@@ -168,66 +208,26 @@ public class DeviceList extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
-        startActivity(new Intent(DeviceList.this, MainActivity.class));
+        Intent intent = new Intent(DeviceList.this, MainActivity.class);
+        startActivity(new Intent(intent));
     }
 
     @Override
     protected void onPause() {
         super.onPause();
         stopSearch();
-
-        Intent serviceIntent = new Intent(this, BluetoothLeService.class);
-
-        serviceConnection = new ServiceConnection() {
-            @Override
-            public void onServiceConnected(ComponentName name, IBinder service) {
-                Log.e(ContentValues.TAG, "onServiceConnected: Initializing bluetooth service");
-
-                bindService(serviceIntent, serviceConnection, Context.BIND_AUTO_CREATE);
-
-                bluetoothService = ((BluetoothLeService.LocalBinder) service).getService();
-
-                Log.e(ContentValues.TAG, "onServiceConnected: " + bluetoothService.getConnectionState());
-                if(bluetoothService.getConnectionState() && bluetoothService != null){
-                    if (!bluetoothService.initialize()) {
-                        Log.e(ContentValues.TAG, "Unable to initialize Bluetooth");
-                    }
-                    System.out.println(bluetoothService.getAddress());
-                    bluetoothService.connect(bluetoothService.getAddress());
-                    registerReceiver(bluetoothService.getGattUpdateReceiver(), makeGattUpdateIntentFilter());
-
-                    Log.e(ContentValues.TAG, "Connect request result=" + bluetoothService.connect(bluetoothService.getAddress()));
-                    Log.e(ContentValues.TAG, "onServiceConnected: Performing device connection");
-                }
-            }
-            @Override
-            public void onServiceDisconnected(ComponentName name) {
-                bluetoothService = null;
-            }
-        };
     }
 
     @SuppressLint("MissingPermission")
     @Override
     protected void onResume() {
         super.onResume();
-
-        // Register the BroadcastReceiver
-        if(askPermission()){
-            mBluetoothAdapter.startDiscovery();
-            System.out.println("starting discovery");
-            IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
-            registerReceiver(receiver, filter);
-        }
-
-        binding.selectDeviceRefresh.setOnClickListener(v -> deviceConnectList());
-        binding.controlsButton.setOnClickListener(v -> startActivity(new Intent(DeviceList.this, MainActivity.class)));
     }
 
     private static IntentFilter makeGattUpdateIntentFilter() {
         final IntentFilter intentFilter = new IntentFilter();
-        intentFilter.addAction(BluetoothLeService.ACTION_GATT_CONNECTED);
-        intentFilter.addAction(BluetoothLeService.ACTION_GATT_DISCONNECTED);
+        intentFilter.addAction(ACTION_GATT_CONNECTED);
+        intentFilter.addAction(ACTION_GATT_DISCONNECTED);
         return intentFilter;
     }
 
@@ -237,8 +237,11 @@ public class DeviceList extends AppCompatActivity {
         if(askPermission()){
             mBluetoothAdapter.cancelDiscovery();
         }
-        // Unregister the BroadcastReceiver
-        unregisterReceiver(receiver);
+        if(registered){
+            Log.e(TAG, "stopSearch: Unregistered receiver");
+            unregisterReceiver(receiver);
+            registered = false;
+        }
     }
 
     private void pairedDeviceList() {

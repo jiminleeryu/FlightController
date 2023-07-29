@@ -6,4 +6,6 @@
     <color name="controlsColor">#4357AD</color>
     <color name="controlsSelectedColor">#546EDD</color>
     <color name="pairedDevicesColor">#32429A</color>
+    <color name="lockColor">#DF6E6E</color>
+    <color name="unlockColor">#84D588</color>
 </resources>

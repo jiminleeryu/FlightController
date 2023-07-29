@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
-    <com.example.cupbotmaybe.Game
+    <com.example.cupbotmaybe.ui.Game
         android:id="@+id/Game"
         android:layout_width="match_parent"
         android:layout_height="match_parent"/>

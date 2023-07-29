@@ -22,6 +22,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import javax.inject.Singleton;
+
+@Singleton
 public class BluetoothLeService extends Service {
 
     //The preamble is defined by the protocol.
@@ -51,14 +54,22 @@ public class BluetoothLeService extends Service {
     public boolean startConnect = false;
     private BluetoothGattCharacteristic controlCharacteristic;
     private Context appContext;
-    private List<UUID> serviceUuids = new ArrayList<UUID>();
-    private List<UUID> characteristicUuids = new ArrayList<UUID>();
+    private List<UUID> serviceUuids = new ArrayList<>();
+    private List<UUID> characteristicUuids = new ArrayList<>();
+    private static BluetoothLeService instance;
 
-    public BluetoothLeService(){
-    }
+    public BluetoothLeService(){}
+
 
     public void setContext(Context appContext){
         this.appContext = appContext;
+    }
+
+    public Context getContext(){
+        if(appContext != null){
+            return appContext;
+        }
+        return null;
     }
 
     private final BroadcastReceiver gattUpdateReceiver = new BroadcastReceiver() {
@@ -72,10 +83,6 @@ public class BluetoothLeService extends Service {
             }
         }
     };
-
-    public BroadcastReceiver getGattUpdateReceiver(){
-        return gattUpdateReceiver;
-    }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -142,11 +149,15 @@ public class BluetoothLeService extends Service {
             }
         }
 
+        @SuppressLint("MissingPermission")
         @Override
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 List<BluetoothGattService> services = gatt.getServices();
                 broadcastUpdate(ACTION_GATT_SERVICES_DISCOVERED);
+
+                //ADDED
+                gatt.requestMtu(517);
 
                 for (BluetoothGattService service : services) {
                     serviceUuids.add(service.getUuid());
@@ -164,7 +175,49 @@ public class BluetoothLeService extends Service {
                 Log.e(TAG, "onServicesDiscovered received: " + status);
             }
         }
+
+        @Override
+        public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
+            // Handle incoming data here
+            byte[] receivedData = characteristic.getValue();
+
+            if (isEchoMSPMessage(receivedData)) {
+                Log.e(TAG, "onCharacteristicChanged: MSP Header Message received");
+                // Parse the echo MSP message and handle the data accordingly
+                // For example, extract motor values or other information
+
+                // The implementation of the isEchoMSPMessage and parsing depends on the MSP message format.
+                // You need to know the structure of the echo MSP message sent by your drone and implement
+                // the necessary logic to extract relevant information from the received data.
+            }
+
+        }
     };
+
+    private boolean isEchoMSPMessage(byte[] receivedData) {
+        // Check the data for characteristics that match the echo MSP message format
+        // Return true if it matches the echo MSP message format, otherwise return false
+
+        // Checking header if it is $M
+        if (receivedData == null || receivedData.length < 2) {
+            return false;
+        }
+
+        // Check if the first two bytes represent the MSP header "$M"
+        return (receivedData[0] == (byte) '$' && receivedData[1] == (byte) 'M');
+    }
+
+    public BluetoothGattCallback getBluetoothGattCallback(){
+        return bluetoothGattCallback;
+    }
+
+    public List<UUID> getServiceUuids(){
+        return serviceUuids;
+    }
+
+    public List<UUID> getCharacteristicUuids(){
+        return characteristicUuids;
+    }
 
     public class LocalBinder extends Binder {
         public BluetoothLeService getService() {
@@ -196,71 +249,5 @@ public class BluetoothLeService extends Service {
         startConnect = false;
         bluetoothGatt.close();
         bluetoothGatt = null;
-    }
-
-    public String getAddress(){
-        if(device != null){
-            return device.getAddress();
-        }
-        return "";
-    }
-
-    @SuppressLint("MissingPermission")
-    public void sendMSPCommand(int commandCode, byte[] payload) {
-        if (bluetoothGatt != null && controlCharacteristic != null) {
-            byte[] packet = createMSPPacket(commandCode, payload);
-            controlCharacteristic.setValue(packet);
-            bluetoothGatt.writeCharacteristic(controlCharacteristic);
-        }
-    }
-
-    private byte[] createMSPPacket(int commandCode, byte[] payload) {
-        int packetLength = 6 + payload.length;
-        byte[] packet = new byte[packetLength];
-        packet[0] = (byte) '$';
-        packet[1] = 'M';
-        packet[2] = '<';
-        packet[3] = (byte) (payload.length & 0xFF);
-        packet[4] = (byte) (commandCode & 0xFF);
-        System.arraycopy(payload, 0, packet, 5, payload.length);
-        packet[packetLength - 1] = calculateChecksum(packet);
-        return packet;
-    }
-
-    // Example method to calculate the MSP packet checksum
-    //TODO: change the method to calculate the checksum
-    private byte calculateChecksum(byte[] packet) {
-        byte checksum = 0;
-        for (int i = 3; i < packet.length - 1; i++) {
-            checksum ^= packet[i];
-        }
-        return checksum;
-    }
-
-    public byte[] preparePayloadForCommand(int commandCode, int[] motorSpeeds) {
-        if (commandCode == 214 && motorSpeeds.length == 4) {
-            // Prepare the payload for the motor command
-            byte[] payload = new byte[9];
-            payload[0] = (byte) 214; // Command code for motor control
-
-            // Set the motor speeds
-            for (int i = 0; i < 4; i++) {
-                payload[i + 1] = (byte) (motorSpeeds[i] & 0xFF); // Set the speed for each motor
-            }
-
-            return payload;
-        } else {
-            // Handle other command codes or unsupported motor speeds
-            return new byte[0]; // Return an empty payload for unsupported commands
-        }
-    }
-
-    @SuppressLint("MissingPermission")
-    public String getName(){
-        return device.getName();
-    }
-
-    public boolean getConnectionState(){
-        return this.startConnect;
     }
 }

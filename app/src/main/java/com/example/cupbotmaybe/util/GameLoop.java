@@ -1,7 +1,9 @@
-package com.example.cupbotmaybe;
+package com.example.cupbotmaybe.util;
 
 import android.graphics.Canvas;
 import android.view.SurfaceHolder;
+
+import com.example.cupbotmaybe.ui.Game;
 
 public class GameLoop extends Thread{
     private static final double MAX_UPS = 30.0;

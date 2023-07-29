@@ -9,8 +9,7 @@ import androidx.core.content.ContextCompat;
 
 import com.example.cupbotmaybe.R;
 
-public class ControlsButton {
-
+public class LockToggle {
     private int left;
     private int top;
     private int right;
@@ -18,14 +17,14 @@ public class ControlsButton {
     private Paint color;
     private boolean isPressed = false;
 
-    public ControlsButton(int left, int top, int right, int bottom, Context context){
+    public LockToggle(int left, int top, int right, int bottom, Context context){
         this.left = left;
         this.top = top;
         this.right = right;
         this.bottom = bottom;
 
         this.color = new Paint();
-        this.color.setColor(ContextCompat.getColor(context, R.color.controlsColor));
+        this.color.setColor(ContextCompat.getColor(context, R.color.unlockColor));
     }
     public void draw(Canvas canvas) {
         canvas.drawRect(this.left, this.top, this.right, this.bottom, this.color);
@@ -33,7 +32,8 @@ public class ControlsButton {
         textPaint.setColor(Color.WHITE);
         textPaint.setTextSize(100);
 
-        canvas.drawText("CONNECT", (this.left + this.right) /2 - 225 , (this.top + this.bottom) /2 + 50, textPaint);
+        canvas.drawText("(Un)lock", (this.left + this.right) /2 - 175 ,
+                (this.top + this.bottom) /2 + 35, textPaint);
     }
 
     public boolean getIsPressed(){
