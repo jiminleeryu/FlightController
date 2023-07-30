@@ -2,8 +2,6 @@ package com.example.cupbotmaybe;
 
 import static android.Manifest.permission.ACCESS_FINE_LOCATION;
 import static android.Manifest.permission.BLUETOOTH_SCAN;
-import static com.example.cupbotmaybe.util.BluetoothLeService.ACTION_GATT_CONNECTED;
-import static com.example.cupbotmaybe.util.BluetoothLeService.ACTION_GATT_DISCONNECTED;
 import static com.example.cupbotmaybe.util.BluetoothLeService.TAG;
 
 import android.annotation.SuppressLint;
