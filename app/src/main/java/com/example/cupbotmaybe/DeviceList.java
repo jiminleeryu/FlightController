@@ -224,13 +224,6 @@ public class DeviceList extends AppCompatActivity{
         super.onResume();
     }
 
-    private static IntentFilter makeGattUpdateIntentFilter() {
-        final IntentFilter intentFilter = new IntentFilter();
-        intentFilter.addAction(ACTION_GATT_CONNECTED);
-        intentFilter.addAction(ACTION_GATT_DISCONNECTED);
-        return intentFilter;
-    }
-
     @SuppressLint("MissingPermission")
     private void stopSearch() {
 

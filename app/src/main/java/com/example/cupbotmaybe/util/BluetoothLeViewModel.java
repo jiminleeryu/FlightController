@@ -2,7 +2,6 @@ package com.example.cupbotmaybe.util;
 
 import android.annotation.SuppressLint;
 import android.app.Application;
-import android.bluetooth.BluetoothGatt;
 
 import androidx.annotation.NonNull;
 import androidx.lifecycle.AndroidViewModel;
@@ -17,9 +16,5 @@ public class BluetoothLeViewModel extends AndroidViewModel {
 
     public BluetoothLeService getBluetoothLeService() {
         return service;
-    }
-
-    public BluetoothGatt getBluetoothGatt() {
-        return service.getBluetoothGatt();
     }
 }

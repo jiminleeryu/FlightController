@@ -26,19 +26,10 @@ import javax.inject.Singleton;
 
 @Singleton
 public class BluetoothLeService extends Service {
-
-    //The preamble is defined by the protocol.
-    //Every message must begin with the characters $M
-    private static final String PREAMBLE = "$M";
-    //Character that denotes information being passed to the MultiWii
-    private static final char TO_MUTLIWII = '<';
-    //Character that denotes information being requested from by the MultiWii
-    private static final char FROM_MUTLIWII = '>';
     public final static String ACTION_GATT_CONNECTED =
             "com.example.cupbotmaybe.util.ACTION_GATT_CONNECTED";
     public final static String ACTION_GATT_DISCONNECTED =
             "com.example.cupbotmaybe.util.ACTION_GATT_DISCONNECTED";
-
     private static final int STATE_DISCONNECTED = 0;
     private static final int STATE_CONNECTED = 2;
 
@@ -52,45 +43,24 @@ public class BluetoothLeService extends Service {
             "com.example.cupbotmaybe.ui.ACTION_GATT_SERVICES_DISCOVERED";
 
     public boolean startConnect = false;
-    private BluetoothGattCharacteristic controlCharacteristic;
     private Context appContext;
-    private List<UUID> serviceUuids = new ArrayList<>();
-    private List<UUID> characteristicUuids = new ArrayList<>();
-    private static BluetoothLeService instance;
+    private final List<UUID> serviceUuids = new ArrayList<>();
+    private final List<UUID> characteristicUuids = new ArrayList<>();
 
-    public BluetoothLeService(){}
+    public BluetoothLeService(){
+        initialize();
+    }
 
 
     public void setContext(Context appContext){
         this.appContext = appContext;
     }
 
-    public Context getContext(){
-        if(appContext != null){
-            return appContext;
-        }
-        return null;
-    }
-
-    private final BroadcastReceiver gattUpdateReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            final String action = intent.getAction();
-            if (BluetoothLeService.ACTION_GATT_CONNECTED.equals(action)) {
-                Log.e(TAG, "onReceive: DEVICE_GATT_CONNECTED");
-            } else if (BluetoothLeService.ACTION_GATT_DISCONNECTED.equals(action)) {
-                Log.e(TAG, "onReceive: DEVICE_GATT_DISCONNECTED");
-            }
-        }
-    };
-
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-        // Handle any initialization or setup logic here
         startConnect = true;
         Log.e(TAG, "onStartCommand: On start Command called, startConnect: " + startConnect);
-        // Return the desired behavior for the service (e.g., START_STICKY, START_NOT_STICKY)
         return START_STICKY;
     }
 
@@ -175,41 +145,7 @@ public class BluetoothLeService extends Service {
                 Log.e(TAG, "onServicesDiscovered received: " + status);
             }
         }
-
-        @Override
-        public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
-            // Handle incoming data here
-            byte[] receivedData = characteristic.getValue();
-
-            if (isEchoMSPMessage(receivedData)) {
-                Log.e(TAG, "onCharacteristicChanged: MSP Header Message received");
-                // Parse the echo MSP message and handle the data accordingly
-                // For example, extract motor values or other information
-
-                // The implementation of the isEchoMSPMessage and parsing depends on the MSP message format.
-                // You need to know the structure of the echo MSP message sent by your drone and implement
-                // the necessary logic to extract relevant information from the received data.
-            }
-
-        }
     };
-
-    private boolean isEchoMSPMessage(byte[] receivedData) {
-        // Check the data for characteristics that match the echo MSP message format
-        // Return true if it matches the echo MSP message format, otherwise return false
-
-        // Checking header if it is $M
-        if (receivedData == null || receivedData.length < 2) {
-            return false;
-        }
-
-        // Check if the first two bytes represent the MSP header "$M"
-        return (receivedData[0] == (byte) '$' && receivedData[1] == (byte) 'M');
-    }
-
-    public BluetoothGattCallback getBluetoothGattCallback(){
-        return bluetoothGattCallback;
-    }
 
     public List<UUID> getServiceUuids(){
         return serviceUuids;

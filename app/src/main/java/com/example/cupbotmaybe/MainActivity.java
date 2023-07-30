@@ -1,6 +1,5 @@
 package com.example.cupbotmaybe;
 
-import android.annotation.SuppressLint;
 import android.os.Bundle;
 import android.view.Window;
 import android.view.WindowManager;

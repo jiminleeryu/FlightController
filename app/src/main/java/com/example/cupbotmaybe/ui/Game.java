@@ -12,9 +12,8 @@ import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 
 import com.example.cupbotmaybe.DeviceList;
-import com.example.cupbotmaybe.util.BluetoothLeService;
-import com.example.cupbotmaybe.util.GameLoop;
 import com.example.cupbotmaybe.R;
+import com.example.cupbotmaybe.util.GameLoop;
 
 public class Game extends SurfaceView implements SurfaceHolder.Callback {
     private GameLoop gameLoop;
@@ -223,11 +222,5 @@ public class Game extends SurfaceView implements SurfaceHolder.Callback {
 
     public boolean getUnlockState(){
         return isUnLocked;
-    }
-    public double getScreenWidth(){
-        return this.screenWidth;
-    }
-    public double getScreenHeight(){
-        return this.screenHeight;
     }
 }
