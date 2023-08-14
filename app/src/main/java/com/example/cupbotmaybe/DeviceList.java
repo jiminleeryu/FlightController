@@ -31,7 +31,6 @@ import com.example.cupbotmaybe.util.updateRunnable;
 import com.google.android.material.snackbar.Snackbar;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -41,9 +40,9 @@ public class DeviceList extends AppCompatActivity{
     private static final int PERMISSION_REQUEST_CODE = 1234;
     String[] appPermissions = {ACCESS_FINE_LOCATION};
     private BroadcastReceiver receiver;
-    private ArrayList<BluetoothDevice> searchDevicesList = new ArrayList<>();
+    private final ArrayList<BluetoothDevice> searchDevicesList = new ArrayList<>();
     private Intent serviceIntent;
-    private List<String> devicesList = new ArrayList<>();
+    private final List<String> devicesList = new ArrayList<>();
     private ListView deviceView;
     private boolean registered, connected = false;
     private BluetoothLeService bluetoothService;
@@ -84,7 +83,6 @@ public class DeviceList extends AppCompatActivity{
                             Log.e("device_name", device.getName());
                             Log.e("device_add", device.getAddress());
 
-                            //removeNonDiscoverableDevice(device);
                             devicesList.add(device.getName() + " | " + device.getAddress());
                             searchDevicesList.add(device);
                             System.out.println("Found device " + device.getName() + " - " + device.getAddress());
@@ -102,6 +100,7 @@ public class DeviceList extends AppCompatActivity{
         Game game = new Game(this);
         setContentView(game);
         if(connected){
+            pairedDeviceList();
             startControlling(game);
             stopSearch();
         }
@@ -114,26 +113,6 @@ public class DeviceList extends AppCompatActivity{
             updateThread.start();
 
             Log.e(ContentValues.TAG, "onResume: BluetoothLeService is not null");
-        }
-    }
-
-    @SuppressLint("MissingPermission")
-    private void removeNonDiscoverableDevice(BluetoothDevice device) {
-        Iterator<BluetoothDevice> iterator = searchDevicesList.iterator();
-        while (iterator.hasNext()) {
-            BluetoothDevice d = iterator.next();
-            if (d.getAddress().equals(device.getAddress())) {
-                iterator.remove();
-                devicesList.remove(d.getName() + " | " + d.getAddress());
-            }
-        }
-
-        if(registered){
-            deviceView = findViewById(R.id.select_device_list);
-            adapter = new ArrayAdapter<>(getApplicationContext(), android.R.layout.simple_list_item_1, devicesList);
-            adapter.notifyDataSetChanged();
-            deviceView.setAdapter(adapter);
-            adapter.notifyDataSetChanged();
         }
     }
 
@@ -235,6 +214,9 @@ public class DeviceList extends AppCompatActivity{
         }
     }
 
+    /**
+     * Lists all the paired devices previously registered
+     */
     private void pairedDeviceList() {
         if (mBluetoothAdapter != null) {
             if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {

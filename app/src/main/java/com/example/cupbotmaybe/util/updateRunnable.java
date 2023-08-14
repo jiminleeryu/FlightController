@@ -60,17 +60,38 @@ public class updateRunnable implements Runnable{
         Log.e(TAG, "Steer X: " + this.game.getSteerActuatorX());
         Log.e(TAG, "ThrottleY: " + this.game.getThrottleActuatorY());// Values used for debugging
         // and reference purposes
-        packet = createMSPPacket((byte) 150);
 
         if(this.game.getThrottleActuatorY() >= 0.75){// the stop for the drone, joystick is on
-            // the bottom
+            // the bottom, no packets are sent
             Log.e(TAG, "readJoystick: SEND STOP");
         }
 
         if(this.game.getThrottleActuatorY() < 0.75){ // Joystick throttle is above the stop point
-            byte[] packet = createMSPPacket((byte) 151); // Command to set throttle value
+            packet = sendMSPPacket((byte) 151, (byte) 0, (byte) 0, (byte) 0, (byte) 125); // Command
+            // to set throttle
+            // value
             sendPacket(packet);
             Log.e(TAG, "readJoystick: SEND GO");
+        }
+
+        if(this.game.getSteerActuatorY() < 0){ // Pitch backwards
+            packet = sendMSPPacket((byte) 151, (byte) 0, (byte) -125, (byte) 0, (byte) 0);
+            sendPacket(packet);
+        }
+
+        if(this.game.getSteerActuatorY() > 0){ // Pitch forwards
+            packet = sendMSPPacket((byte) 151, (byte) 0, (byte) 125, (byte) 0, (byte) 0);
+            sendPacket(packet);
+        }
+
+        if(this.game.getSteerActuatorX() > 0){ // Roll right
+            packet = sendMSPPacket((byte) 151, (byte) 125, (byte) 0, (byte) 0, (byte) 0);
+            sendPacket(packet);
+        }
+
+        if(this.game.getSteerActuatorX() < 0){ // Roll left
+            packet = sendMSPPacket((byte) 151, (byte) -125, (byte) 0, (byte) 0, (byte) 0);
+            sendPacket(packet);
         }
     }
 
@@ -88,7 +109,8 @@ public class updateRunnable implements Runnable{
     /**
      * Creating MSP packet based on MultiWii protocol requirements
      */
-    public static byte[] createMSPPacket(byte command) {
+    public static byte[] sendMSPPacket(byte command, byte roll, byte pitch, byte yaw,
+                                       byte throttle) {
         // Create the MSP packet
         byte dataSize = 5;
         byte[] packet = new byte[11];
@@ -99,10 +121,10 @@ public class updateRunnable implements Runnable{
         packet[2] = '<'; //Character that denotes information being passed to the MultiWii
         packet[3] = 5; // Data size
         packet[4] = command; // Command byte (the specific command you want to send)
-        packet[5] = 0;
-        packet[6] = 0;
-        packet[7] = 0;
-        packet[8] = 125;
+        packet[5] = roll;
+        packet[6] = pitch;
+        packet[7] = yaw;
+        packet[8] = throttle;
         packet[9] = 5;
 
         // Calculate the checksum for the entire packet (including size and command)
