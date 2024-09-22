@@ -63,8 +63,8 @@ PID: 8036
 
 MAC Address: 64:69:4E:99:D8:51
 
-FIND FIND!!! BLE characteristic representing the MSP communication channel
-Which characteristic UUID????
+BLE characteristic representing the MSP communication channel
+Which characteristic UUID?
 
 THE PACKET:
 $           M       <       size     214
